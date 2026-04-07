@@ -1,9 +1,7 @@
 import streamlit as st
 import pandas as pd
 import random
-import datetime
 import time
-
 # 🎨 UI STYLE
 st.markdown(
     """
@@ -54,7 +52,7 @@ difficulty = st.selectbox(
     ["Easy", "Medium", "Hard"]
 )
 
-# 🚦 RISK LEVEL INDICATOR
+# 🚦 RISK LEVEL
 if difficulty == "Easy":
     st.success("🟢 Low Risk")
 elif difficulty == "Medium":
@@ -69,38 +67,65 @@ if "score" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
+# 🤖 AI RESPONSE FUNCTION
+def generate_scammer_reply(user_input, scam_type, difficulty):
+    prompt = f"""
+You are an expert scammer targeting students.
+
+Scam Type: {scam_type}
+Difficulty: {difficulty}
+
+Victim says: "{user_input}"
+
+Rules:
+- Be persuasive and realistic
+- Create urgency
+- Try to get sensitive info (login, OTP, password)
+- If user hesitates → increase pressure
+- If user agrees → push for credentials
+- Never reveal you are a scam
+
+Keep response short and conversational.
+"""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You simulate scam conversations for cybersecurity training."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.9
+        )
+
+        return response.choices[0].message.content
+
+    except Exception as e:
+        return "⚠️ AI Error. Check API key or internet."
+
 # 🚀 START SIMULATION
 if st.button("🚀 Start Simulation"):
 
-    if not texts:
-        st.warning("No dataset available")
-    else:
-        user = name if name else "User"
+    user = name if name else "User"
+
+    if texts:
         sample = random.choice(texts)
+    else:
+        sample = "We have an exclusive opportunity for you."
 
-        # Difficulty-based message size
-        if difficulty == "Easy":
-            length = 120
-        elif difficulty == "Medium":
-            length = 220
-        else:
-            length = 400
+    st.session_state.chat_history = [
+        f"🤖 Scammer: Hello {user}, {sample[:150]}"
+    ]
 
-        sample = sample[:length]
+    st.session_state.score = 0
 
-        st.session_state.chat_history = [
-            f"🤖 Scammer: Hello {user}, {sample}"
-        ]
-
-        st.session_state.score = 0
-
-# 💬 CHAT SIMULATION
+# 💬 CHAT DISPLAY
 st.subheader("💬 Live Scam Simulation")
 
 for msg in st.session_state.chat_history:
     st.markdown(f'<div class="chat">{msg}</div>', unsafe_allow_html=True)
 
-# ✅ CHAT INPUT FORM
+# 💬 CHAT INPUT
 with st.form("chat_form"):
     user_reply = st.text_input("Your Reply")
     submitted = st.form_submit_button("Send Reply")
@@ -108,41 +133,43 @@ with st.form("chat_form"):
 if submitted and user_reply:
     st.session_state.chat_history.append(f"👤 You: {user_reply}")
 
-    # 🚨 BEHAVIOR ANALYSIS
-    risky_words = ["yes", "ok", "sure", "click", "login", "password"]
-    
-    if any(word in user_reply.lower() for word in risky_words):
-        st.session_state.score += 10
-        response = "Great! Please proceed to 🔴VERIFY your account now."
-    else:
-        response = "We need confirmation to continue. This is 🔴URGENT."
+    # 🤖 AI GENERATED RESPONSE
+    ai_reply = generate_scammer_reply(user_reply, scam_type, difficulty)
 
-    st.session_state.chat_history.append(f"🤖 Scammer: {response}")
+    st.session_state.chat_history.append(f"🤖 Scammer: {ai_reply}")
+
+    # 🎯 SCORING SYSTEM
+    risky_words = ["password", "otp", "bank", "login", "verify"]
+
+    if any(word in user_reply.lower() for word in risky_words):
+        st.session_state.score += 15
+    else:
+        st.session_state.score += 5
 
 # 🎯 SCORE DISPLAY
 st.subheader("🎯 Your Risk Score")
 
-if st.session_state.score < 10:
+if st.session_state.score < 15:
     st.success("🟢 Safe User")
-elif st.session_state.score < 30:
+elif st.session_state.score < 40:
     st.warning("🟡 Moderate Risk")
 else:
     st.error("🔴 High Risk - Vulnerable to scams!")
 
-# 🔗 FAKE URL
-st.markdown("🔗 https://secure-internship-portal.com/login")
+# 🔗 FAKE LINK
+st.markdown("🔗 https://secure-verification-login.com")
 
-# 🔐 PHISHING LOGIN
+# 🔐 PHISHING PAGE
 st.subheader("🔐 Verification Portal")
 
 username = st.text_input("Email / Username")
 password = st.text_input("Password", type="password")
 
 if st.button("Login Securely"):
-    st.session_state.score += 20
-    st.error("⚠️ This is a phishing simulation! Your data could be stolen.")
+    st.session_state.score += 25
+    st.error("⚠️ This is a phishing simulation! Credentials stolen.")
 
-# ⏳ COUNTDOWN TIMER (URGENCY)
+# ⏳ URGENCY TIMER
 st.subheader("⏳ Limited Time Offer")
 
 placeholder = st.empty()
@@ -156,14 +183,14 @@ st.subheader("📊 Simulation Stats")
 st.metric("Risk Score", st.session_state.score)
 st.metric("Messages Exchanged", len(st.session_state.chat_history))
 
-# 🧠 SCAM EXPLANATION
+# 🧠 EXPLANATION
 st.subheader("🧠 Why this is a scam?")
 
 st.write("""
 - Uses urgency and pressure tactics  
-- Asks for sensitive information  
-- Mimics trusted organizations  
-- Creates fear or excitement  
+- Requests sensitive data  
+- Mimics trusted authority  
+- Manipulates emotions  
 """)
 
 # 📊 DATA INFO
